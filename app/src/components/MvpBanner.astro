@@ -1,0 +1,35 @@
+---
+/** Banner for the index page: MVP notice, optional meta.note, and friendly generated_at. */
+export interface Props {
+  /** Snapshot meta.note (may be undefined). */
+  note?: string | null;
+  /** Snapshot meta.generated_at ISO string. */
+  generatedAt: string;
+}
+const { note, generatedAt } = Astro.props;
+const date = new Date(generatedAt);
+const friendlyDate = new Intl.DateTimeFormat("es-UY", {
+  dateStyle: "long",
+  timeStyle: "short",
+}).format(date);
+---
+<div class="mvp-banner">
+  <p class="mvp-banner__intro">
+    Este sitio es un <strong>MVP</strong> basado en un snapshot estático del catálogo y puede tener cobertura parcial.
+  </p>
+  {note && <p class="mvp-banner__note">{note}</p>}
+  <p class="mvp-banner__meta">Snapshot generado: <time datetime={generatedAt}>{friendlyDate}</time></p>
+</div>
+
+<style>
+  .mvp-banner {
+    background: #e7f1ff;
+    border: 1px solid #b6d4fe;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .mvp-banner__intro { margin: 0 0 0.5rem 0; }
+  .mvp-banner__note { margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #333; }
+  .mvp-banner__meta { margin: 0; font-size: 0.875rem; color: #495057; }
+</style>

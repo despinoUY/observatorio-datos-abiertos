@@ -44,3 +44,7 @@ temp/
 
 # Optional: uncomment if you use pnpm
 # .pnpm-store/
+
+__pycache__/
+*.pyc
+.venv/

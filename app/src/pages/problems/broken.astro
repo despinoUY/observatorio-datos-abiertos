@@ -1,0 +1,48 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { loadSnapshot, getDatasets } from "../../lib/snapshot";
+
+const snapshot = loadSnapshot();
+const datasets = [...getDatasets(snapshot)]
+  .filter((d) => d.resources_broken > 0)
+  .sort((a, b) => b.resources_broken - a.resources_broken);
+const base = import.meta.env.BASE_URL;
+---
+<Layout title="Recursos rotos — Observatorio" description="Datasets con recursos rotos (HTTP fallido).">
+  <h1>Recursos rotos</h1>
+  <p class="intro">Datasets con al menos un recurso que falló la verificación HTTP.</p>
+
+  {datasets.length === 0 ? (
+    <p>No hay datasets con recursos rotos en este snapshot.</p>
+  ) : (
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Dataset</th>
+            <th>Organización</th>
+            <th>Recursos rotos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {datasets.map((d) => (
+            <tr>
+              <td>
+                <a href={`${base}dataset/${d.name}`}>{d.title}</a>
+              </td>
+              <td>
+                <a href={`${base}org/${d.organization.name}`}>{d.organization.title}</a>
+              </td>
+              <td>{d.resources_broken}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</Layout>
+
+<style>
+  .intro { color: #495057; margin-top: -0.5rem; margin-bottom: 1.5rem; }
+  .table-wrap { overflow-x: auto; }
+</style>

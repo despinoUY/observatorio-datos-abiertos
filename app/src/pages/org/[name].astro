@@ -1,0 +1,199 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FreshnessBadge from "../../components/FreshnessBadge.astro";
+import { loadSnapshot, getOrganizationBySlug, getDatasets } from "../../lib/snapshot";
+
+export function getStaticPaths() {
+  const snapshot = loadSnapshot();
+  return snapshot.organizations.map((org) => ({
+    params: { name: org.name },
+  }));
+}
+
+const orgName = Astro.params.name ?? "";
+const snapshot = loadSnapshot();
+const org = getOrganizationBySlug(snapshot, orgName);
+if (!org) {
+  return Astro.redirect(import.meta.env.BASE_URL);
+}
+
+const allDatasets = getDatasets(snapshot);
+const orgDatasets = [...allDatasets]
+  .filter((d) => d.organization.name === orgName)
+  .sort((a, b) => a.days_since_modified - b.days_since_modified);
+const base = import.meta.env.BASE_URL;
+---
+<Layout title={`${org.title} — Observatorio`} description={`Datasets de ${org.title}.`}>
+  <h1>{org.title}</h1>
+  <p class="org-slug">{org.name}</p>
+
+  <section class="cards">
+    <div class="card">
+      <div class="value">{org.datasets_total}</div>
+      <div class="label">Datasets</div>
+    </div>
+    <div class="card">
+      <div class="value">{org.datasets_green}</div>
+      <div class="label">Verde</div>
+    </div>
+    <div class="card">
+      <div class="value">{org.datasets_yellow}</div>
+      <div class="label">Amarillo</div>
+    </div>
+    <div class="card">
+      <div class="value">{org.datasets_red}</div>
+      <div class="label">Rojo</div>
+    </div>
+    <div class="card">
+      <div class="value">{org.resources_broken}</div>
+      <div class="label">Recursos rotos</div>
+    </div>
+    <div class="card">
+      <div class="value">{org.resources_parse_failed}</div>
+      <div class="label">Parse fallido</div>
+    </div>
+  </section>
+
+  <h2>Datasets</h2>
+  <label for="dataset-search" class="visually-hidden">Buscar por título o nombre</label>
+  <input
+    type="search"
+    id="dataset-search"
+    placeholder="Filtrar por título o nombre..."
+    autocomplete="off"
+  />
+  <div class="table-wrap">
+    <table class="dataset-table sortable-table" data-default-key="days_since_modified" data-default-dir="asc">
+      <thead>
+        <tr>
+          <th data-sort-key="title" data-sort-type="string">Título</th>
+          <th data-sort-key="freshness_order" data-sort-type="number">Freshness</th>
+          <th data-sort-key="days_since_modified" data-sort-type="number">Días desde mod.</th>
+          <th data-sort-key="resources_total" data-sort-type="number">Recursos</th>
+          <th data-sort-key="resources_broken" data-sort-type="number">Rotos</th>
+          <th data-sort-key="resources_parse_failed" data-sort-type="number">Parse fallido</th>
+          <th data-sort-key="formats" data-sort-type="string">Formatos</th>
+        </tr>
+      </thead>
+      <tbody>
+        {orgDatasets.map((d) => (
+          <tr
+            data-title={d.title.toLowerCase()}
+            data-name={d.name.toLowerCase()}
+            data-days_since_modified={d.days_since_modified}
+            data-freshness_order={{ green: 0, yellow: 1, red: 2, unknown: 3 }[d.freshness_bucket]}
+            data-resources_total={d.resources_total}
+            data-resources_broken={d.resources_broken}
+            data-resources_parse_failed={d.resources_parse_failed}
+            data-formats={d.formats.join(", ").toLowerCase()}
+          >
+            <td>
+              <a href={`${base}dataset/${d.name}`}>{d.title}</a>
+            </td>
+            <td><FreshnessBadge bucket={d.freshness_bucket} /></td>
+            <td>{d.days_since_modified}</td>
+            <td>{d.resources_total}</td>
+            <td>{d.resources_broken}</td>
+            <td>{d.resources_parse_failed}</td>
+            <td>{d.formats.join(", ")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</Layout>
+
+<script>
+  const input = document.getElementById("dataset-search") as HTMLInputElement;
+  const tbody = document.querySelector(".dataset-table tbody");
+  if (input && tbody) {
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    input.addEventListener("input", () => {
+      const q = input.value.trim().toLowerCase();
+      rows.forEach((row) => {
+        const title = (row.getAttribute("data-title") ?? "").trim();
+        const name = (row.getAttribute("data-name") ?? "").trim();
+        const show = !q || title.includes(q) || name.includes(q);
+        (row as HTMLElement).style.display = show ? "" : "none";
+      });
+    });
+  }
+
+  function initSortable(table: HTMLTableElement) {
+    const tbodyEl = table.querySelector("tbody");
+    const headers = table.querySelectorAll<HTMLTableCellElement>("thead th[data-sort-key]");
+    if (!tbodyEl || !headers.length) return;
+
+    const defaultKey = table.dataset.defaultKey ?? "";
+    const defaultDir = (table.dataset.defaultDir ?? "asc") as "asc" | "desc";
+    let currentKey = defaultKey;
+    let currentDir = defaultDir;
+
+    function sort() {
+      const rows = Array.from(tbodyEl.querySelectorAll("tr"));
+      const key = currentKey;
+      const dir = currentDir;
+      const type = table.querySelector(`th[data-sort-key="${key}"]`)?.getAttribute("data-sort-type") ?? "string";
+
+      rows.sort((a, b) => {
+        const rawA = a.getAttribute(`data-${key}`);
+        const rawB = b.getAttribute(`data-${key}`);
+        let cmp = 0;
+        if (type === "number") {
+          const numA = Number(rawA) ?? 0;
+          const numB = Number(rawB) ?? 0;
+          cmp = numA - numB;
+        } else {
+          cmp = String(rawA ?? "").localeCompare(String(rawB ?? ""));
+        }
+        return dir === "asc" ? cmp : -cmp;
+      });
+
+      rows.forEach((r) => tbodyEl.appendChild(r));
+    }
+
+    function setIndicator(key: string) {
+      headers.forEach((h) => {
+        h.classList.remove("sort-asc", "sort-desc");
+        h.removeAttribute("aria-sort");
+      });
+      const thActive = table.querySelector(`th[data-sort-key="${key}"]`) as HTMLTableCellElement;
+      if (thActive) {
+        thActive.classList.add(currentDir === "asc" ? "sort-asc" : "sort-desc");
+        thActive.setAttribute("aria-sort", currentDir === "asc" ? "ascending" : "descending");
+      }
+    }
+
+    headers.forEach((th) => {
+      th.setAttribute("tabindex", "0");
+      th.setAttribute("role", "button");
+      th.addEventListener("click", () => {
+        const key = th.getAttribute("data-sort-key") ?? "";
+        if (key === currentKey) currentDir = currentDir === "asc" ? "desc" : "asc";
+        else {
+          currentKey = key;
+          currentDir = (th.getAttribute("data-sort-type") === "number" ? "asc" : "asc") as "asc" | "desc";
+        }
+        setIndicator(currentKey);
+        sort();
+      });
+      th.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          th.click();
+        }
+      });
+    });
+
+    setIndicator(currentKey);
+    sort();
+  }
+  document.querySelectorAll<HTMLTableElement>(".sortable-table").forEach(initSortable);
+</script>
+
+<style>
+  .org-slug { color: #6c757d; font-size: 0.9rem; margin-top: -0.5rem; margin-bottom: 1.5rem; }
+  h2 { margin-top: 2rem; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .table-wrap { overflow-x: auto; }
+</style>

@@ -1,17 +1,174 @@
 ---
-// Welcome to Astro! Everything between these triple-dash code fences
-// is your "component frontmatter". It never runs in the browser.
-console.log('This runs in your terminal, not the browser!');
+import Layout from "../layouts/Layout.astro";
+import MvpBanner from "../components/MvpBanner.astro";
+import { loadSnapshot, getOrganizations } from "../lib/snapshot";
+
+const snapshot = loadSnapshot();
+const summary = snapshot.summary;
+const organizations = [...getOrganizations(snapshot)].sort(
+  (a, b) => b.datasets_total - a.datasets_total
+);
+const base = import.meta.env.BASE_URL;
 ---
-<!-- Below is your "component template." It's just HTML, but with
-    some magic sprinkled in to help you build great templates. -->
-<html>
-  <body>
-    <h1>Hello, World!</h1>
-  </body>
-</html>
-<style>
-  h1 {
-    color: orange;
+<Layout title="Inicio — Observatorio de datos abiertos" description="Resumen del catálogo y organizaciones.">
+  <h1>Resumen del catálogo</h1>
+
+  <MvpBanner note={snapshot.meta.note} generatedAt={snapshot.meta.generated_at} />
+
+  <section class="cards">
+    <div class="card">
+      <div class="value">{summary.datasets_total}</div>
+      <div class="label">Datasets totales</div>
+    </div>
+    <div class="card">
+      <div class="value">{summary.datasets_green}</div>
+      <div class="label">Verde</div>
+    </div>
+    <div class="card">
+      <div class="value">{summary.datasets_yellow}</div>
+      <div class="label">Amarillo</div>
+    </div>
+    <div class="card">
+      <div class="value">{summary.datasets_red}</div>
+      <div class="label">Rojo</div>
+    </div>
+    <div class="card">
+      <div class="value">{summary.resources_total}</div>
+      <div class="label">Recursos totales</div>
+    </div>
+    <div class="card">
+      <div class="value">{summary.resources_broken}</div>
+      <div class="label">Recursos rotos</div>
+    </div>
+    <div class="card">
+      <div class="value">{summary.resources_parse_failed}</div>
+      <div class="label">Parse fallido</div>
+    </div>
+  </section>
+
+  <nav class="problems-nav" aria-label="Enlaces a listados de problemas">
+    <a href={`${base}problems/broken`}>Recursos rotos</a>
+    <a href={`${base}problems/parse-failed`}>Parse fallido</a>
+  </nav>
+
+  <h2>Organizaciones</h2>
+  <div class="table-wrap">
+    <table class="sortable-table" data-default-key="datasets_total" data-default-dir="desc">
+      <thead>
+        <tr>
+          <th data-sort-key="org_title" data-sort-type="string">Organización</th>
+          <th data-sort-key="datasets_total" data-sort-type="number">Datasets</th>
+          <th data-sort-key="datasets_green" data-sort-type="number">Verde</th>
+          <th data-sort-key="datasets_yellow" data-sort-type="number">Amarillo</th>
+          <th data-sort-key="datasets_red" data-sort-type="number">Rojo</th>
+          <th data-sort-key="resources_broken" data-sort-type="number">Recursos rotos</th>
+          <th data-sort-key="resources_parse_failed" data-sort-type="number">Parse fallido</th>
+        </tr>
+      </thead>
+      <tbody>
+        {organizations.map((org) => (
+          <tr
+            data-org_title={org.title.toLowerCase()}
+            data-datasets_total={org.datasets_total}
+            data-datasets_green={org.datasets_green}
+            data-datasets_yellow={org.datasets_yellow}
+            data-datasets_red={org.datasets_red}
+            data-resources_broken={org.resources_broken}
+            data-resources_parse_failed={org.resources_parse_failed}
+          >
+            <td>
+              <a href={`${base}org/${org.name}`}>{org.title}</a>
+            </td>
+            <td>{org.datasets_total}</td>
+            <td>{org.datasets_green}</td>
+            <td>{org.datasets_yellow}</td>
+            <td>{org.datasets_red}</td>
+            <td>{org.resources_broken}</td>
+            <td>{org.resources_parse_failed}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</Layout>
+
+<script>
+  function initSortable(table: HTMLTableElement) {
+    const tbody = table.querySelector("tbody");
+    const headers = table.querySelectorAll<HTMLTableCellElement>("thead th[data-sort-key]");
+    if (!tbody || !headers.length) return;
+
+    const defaultKey = table.dataset.defaultKey ?? "";
+    const defaultDir = (table.dataset.defaultDir ?? "asc") as "asc" | "desc";
+    let currentKey = defaultKey;
+    let currentDir = defaultDir;
+
+    function sort() {
+      const rows = Array.from(tbody.querySelectorAll("tr"));
+      const key = currentKey;
+      const dir = currentDir;
+      const type = table.querySelector(`th[data-sort-key="${key}"]`)?.getAttribute("data-sort-type") ?? "string";
+
+      rows.sort((a, b) => {
+        const rawA = a.getAttribute(`data-${key}`);
+        const rawB = b.getAttribute(`data-${key}`);
+        let cmp = 0;
+        if (type === "number") {
+          const numA = Number(rawA) ?? 0;
+          const numB = Number(rawB) ?? 0;
+          cmp = numA - numB;
+        } else {
+          cmp = String(rawA ?? "").localeCompare(String(rawB ?? ""));
+        }
+        return dir === "asc" ? cmp : -cmp;
+      });
+
+      rows.forEach((r) => tbody.appendChild(r));
+    }
+
+    function setIndicator(key: string) {
+      headers.forEach((h) => {
+        h.classList.remove("sort-asc", "sort-desc");
+        h.removeAttribute("aria-sort");
+      });
+      const thActive = table.querySelector(`th[data-sort-key="${key}"]`) as HTMLTableCellElement;
+      if (thActive) {
+        thActive.classList.add(currentDir === "asc" ? "sort-asc" : "sort-desc");
+        thActive.setAttribute("aria-sort", currentDir === "asc" ? "ascending" : "descending");
+      }
+    }
+
+    headers.forEach((th) => {
+      th.setAttribute("tabindex", "0");
+      th.setAttribute("role", "button");
+      th.addEventListener("click", () => {
+        const key = th.getAttribute("data-sort-key") ?? "";
+        if (key === currentKey) currentDir = currentDir === "asc" ? "desc" : "asc";
+        else {
+          currentKey = key;
+          currentDir = (th.getAttribute("data-sort-type") === "number" ? "desc" : "asc") as "asc" | "desc";
+        }
+        setIndicator(currentKey);
+        sort();
+      });
+      th.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          th.click();
+        }
+      });
+    });
+
+    setIndicator(currentKey);
+    sort();
   }
+  document.querySelectorAll<HTMLTableElement>(".sortable-table").forEach(initSortable);
+</script>
+
+<style>
+  .problems-nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
+  .problems-nav a { padding: 0.5rem 1rem; background: #fff; border: 1px solid #dee2e6; border-radius: 4px; text-decoration: none; font-size: 0.9rem; }
+  .problems-nav a:hover { background: #e9ecef; border-color: #adb5bd; }
+  h2 { margin-top: 2rem; }
+  .table-wrap { overflow-x: auto; }
 </style>

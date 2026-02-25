@@ -1,0 +1,48 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { loadSnapshot, getDatasets } from "../../lib/snapshot";
+
+const snapshot = loadSnapshot();
+const datasets = [...getDatasets(snapshot)]
+  .filter((d) => d.resources_parse_failed > 0)
+  .sort((a, b) => b.resources_parse_failed - a.resources_parse_failed);
+const base = import.meta.env.BASE_URL;
+---
+<Layout title="Parse fallido — Observatorio" description="Datasets con recursos que fallaron el parse (CSV/JSON).">
+  <h1>Parse fallido</h1>
+  <p class="intro">Datasets con al menos un recurso que falló el parse (CSV/JSON).</p>
+
+  {datasets.length === 0 ? (
+    <p>No hay datasets con parse fallido en este snapshot.</p>
+  ) : (
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Dataset</th>
+            <th>Organización</th>
+            <th>Parse fallido</th>
+          </tr>
+        </thead>
+        <tbody>
+          {datasets.map((d) => (
+            <tr>
+              <td>
+                <a href={`${base}dataset/${d.name}`}>{d.title}</a>
+              </td>
+              <td>
+                <a href={`${base}org/${d.organization.name}`}>{d.organization.title}</a>
+              </td>
+              <td>{d.resources_parse_failed}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</Layout>
+
+<style>
+  .intro { color: #495057; margin-top: -0.5rem; margin-bottom: 1.5rem; }
+  .table-wrap { overflow-x: auto; }
+</style>

@@ -1,0 +1,30 @@
+---
+/** Maps freshness_bucket to a colored pill. Use for datasets or anywhere we show green/yellow/red/unknown. */
+export interface Props {
+  bucket: "green" | "yellow" | "red" | "unknown";
+  /** Optional label override; default is Spanish label (Verde, Amarillo, Rojo, Desconocido). */
+  label?: string;
+}
+const LABELS: Record<"green" | "yellow" | "red" | "unknown", string> = {
+  green: "Verde",
+  yellow: "Amarillo",
+  red: "Rojo",
+  unknown: "Desconocido",
+};
+const { bucket, label = LABELS[bucket] } = Astro.props;
+---
+<span class={`freshness-badge freshness-badge-${bucket}`}>{label}</span>
+
+<style>
+  .freshness-badge {
+    display: inline-block;
+    padding: 0.2em 0.5em;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  .freshness-badge-green { background: #d4edda; color: #155724; }
+  .freshness-badge-yellow { background: #fff3cd; color: #856404; }
+  .freshness-badge-red { background: #f8d7da; color: #721c24; }
+  .freshness-badge-unknown { background: #e2e3e5; color: #383d41; }
+</style>

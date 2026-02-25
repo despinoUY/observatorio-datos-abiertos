@@ -1,0 +1,59 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = "Observatorio de datos abiertos" } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+    <header class="site-header">
+      <a href={base}>Observatorio de datos abiertos</a>
+    </header>
+    <main class="main">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <p>Datos del catálogo nacional. Snapshot estático.</p>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 0; line-height: 1.5; color: #222; background: #f8f9fa; }
+  a { color: #0066cc; }
+  a:hover { text-decoration: underline; }
+  .site-header { background: #fff; border-bottom: 1px solid #dee2e6; padding: 0.75rem 1rem; }
+  .site-header a { font-weight: 600; text-decoration: none; }
+  .main { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+  .site-footer { margin-top: 2rem; padding: 1rem; border-top: 1px solid #dee2e6; font-size: 0.875rem; color: #6c757d; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+  th { background: #f1f3f5; font-weight: 600; font-size: 0.875rem; }
+  tr:hover { background: #f8f9fa; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .card { background: #fff; padding: 1rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .card .value { font-size: 1.5rem; font-weight: 700; }
+  .card .label { font-size: 0.8rem; color: #6c757d; margin-top: 0.25rem; }
+  .badge { display: inline-block; padding: 0.2em 0.5em; border-radius: 3px; font-size: 0.8rem; font-weight: 500; }
+  .badge-green { background: #d4edda; color: #155724; }
+  .badge-yellow { background: #fff3cd; color: #856404; }
+  .badge-red { background: #f8d7da; color: #721c24; }
+  .badge-unknown { background: #e2e3e5; color: #383d41; }
+  input[type="search"] { padding: 0.5rem 0.75rem; border: 1px solid #ced4da; border-radius: 4px; width: 100%; max-width: 320px; margin-bottom: 1rem; }
+  .resource-error { background: #f8d7da; color: #721c24; padding: 0.5rem; border-radius: 4px; font-size: 0.875rem; margin-top: 0.25rem; }
+  th[data-sort-key] { cursor: pointer; user-select: none; }
+  th[data-sort-key]:hover { background: #e9ecef; }
+  th[data-sort-key]::after { content: " ⇅"; opacity: 0.4; font-size: 0.75em; }
+  th[data-sort-key].sort-asc::after { content: " ↑"; opacity: 1; }
+  th[data-sort-key].sort-desc::after { content: " ↓"; opacity: 1; }
+</style>
