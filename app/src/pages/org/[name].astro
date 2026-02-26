@@ -101,25 +101,93 @@ const base = import.meta.env.BASE_URL;
       </tbody>
     </table>
   </div>
+  <nav class="pagination" aria-label="Paginación de datasets">
+    <p class="pagination-summary" id="pagination-summary">—</p>
+    <div class="pagination-buttons">
+      <button type="button" class="pagination-prev" id="pagination-prev" aria-label="Página anterior">Anterior</button>
+      <button type="button" class="pagination-next" id="pagination-next" aria-label="Página siguiente">Siguiente</button>
+    </div>
+  </nav>
 </Layout>
 
 <script>
+  const PAGE_SIZE = 15;
+
   const input = document.getElementById("dataset-search") as HTMLInputElement;
   const tbody = document.querySelector(".dataset-table tbody");
-  if (input && tbody) {
-    const rows = Array.from(tbody.querySelectorAll("tr"));
-    input.addEventListener("input", () => {
-      const q = input.value.trim().toLowerCase();
-      rows.forEach((row) => {
-        const title = (row.getAttribute("data-title") ?? "").trim();
-        const name = (row.getAttribute("data-name") ?? "").trim();
-        const show = !q || title.includes(q) || name.includes(q);
-        (row as HTMLElement).style.display = show ? "" : "none";
-      });
+  const summaryEl = document.getElementById("pagination-summary");
+  const prevBtn = document.getElementById("pagination-prev");
+  const nextBtn = document.getElementById("pagination-next");
+
+  let currentPage = 1;
+
+  function getMatchingRows(): HTMLTableRowElement[] {
+    if (!tbody) return [];
+    const q = (input?.value ?? "").trim().toLowerCase();
+    const rows = Array.from(tbody.querySelectorAll<HTMLTableRowElement>("tr"));
+    if (!q) return rows;
+    return rows.filter((row) => {
+      const title = (row.getAttribute("data-title") ?? "").trim();
+      const name = (row.getAttribute("data-name") ?? "").trim();
+      return title.includes(q) || name.includes(q);
     });
   }
 
-  function initSortable(table: HTMLTableElement) {
+  function applyPage() {
+    if (!tbody || !summaryEl) return;
+    const matching = getMatchingRows();
+    const total = matching.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    currentPage = Math.max(1, Math.min(currentPage, totalPages));
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = Math.min(start + PAGE_SIZE, total);
+
+    matching.forEach((row, i) => {
+      (row as HTMLElement).style.display = i >= start && i < end ? "" : "none";
+    });
+
+    if (total === 0) {
+      summaryEl.textContent = "Ningún dataset coincide con el filtro.";
+    } else {
+      summaryEl.textContent = `Mostrando ${start + 1}-${end} de ${total} dataset${total !== 1 ? "s" : ""}.`;
+    }
+
+    if (prevBtn) {
+      if (currentPage <= 1) prevBtn.setAttribute("disabled", "");
+      else prevBtn.removeAttribute("disabled");
+    }
+    if (nextBtn) {
+      if (currentPage >= totalPages) nextBtn.setAttribute("disabled", "");
+      else nextBtn.removeAttribute("disabled");
+    }
+  }
+
+  if (input) {
+    input.addEventListener("input", () => {
+      currentPage = 1;
+      applyPage();
+    });
+  }
+  if (prevBtn) {
+    prevBtn.addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage--;
+        applyPage();
+      }
+    });
+  }
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      const matching = getMatchingRows();
+      const totalPages = Math.max(1, Math.ceil(matching.length / PAGE_SIZE));
+      if (currentPage < totalPages) {
+        currentPage++;
+        applyPage();
+      }
+    });
+  }
+
+  function initSortable(table: HTMLTableElement, onAfterSort?: () => void) {
     const tbodyEl = table.querySelector("tbody");
     const headers = table.querySelectorAll<HTMLTableCellElement>("thead th[data-sort-key]");
     if (!tbodyEl || !headers.length) return;
@@ -150,6 +218,7 @@ const base = import.meta.env.BASE_URL;
       });
 
       rows.forEach((r) => tbodyEl.appendChild(r));
+      onAfterSort?.();
     }
 
     function setIndicator(key: string) {
@@ -188,7 +257,7 @@ const base = import.meta.env.BASE_URL;
     setIndicator(currentKey);
     sort();
   }
-  document.querySelectorAll<HTMLTableElement>(".sortable-table").forEach(initSortable);
+  document.querySelectorAll<HTMLTableElement>(".sortable-table").forEach((t) => initSortable(t, applyPage));
 </script>
 
 <style>
@@ -196,4 +265,10 @@ const base = import.meta.env.BASE_URL;
   h2 { margin-top: 2rem; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
   .table-wrap { overflow-x: auto; }
+  .pagination { margin-top: 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+  .pagination-summary { margin: 0; font-size: 0.9rem; color: #495057; }
+  .pagination-buttons { display: flex; gap: 0.5rem; }
+  .pagination-prev, .pagination-next { padding: 0.4rem 0.75rem; font-size: 0.9rem; cursor: pointer; border: 1px solid #ced4da; border-radius: 4px; background: #fff; }
+  .pagination-prev:hover:not(:disabled), .pagination-next:hover:not(:disabled) { background: #e9ecef; }
+  .pagination-prev:disabled, .pagination-next:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>
